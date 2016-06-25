@@ -2,13 +2,13 @@
 CLEANER
 =========
 Handles cleaning steps for transforming JSON map contents into usable format
-for word2vec and/or topic modeling.
+for word2vec, markov chains or topic modeling.
 
 @author GalenS <galen.scovell@gmail.com>
 """
 
+import re
 import string
-import sys
 
 import nltk
 from bs4 import BeautifulSoup
@@ -16,7 +16,11 @@ from nltk.collocations import *
 from nltk.corpus import stopwords, wordnet
 from nltk.stem.porter import PorterStemmer
 
-punc = string.punctuation + '\n\r\t'
+
+whitespace = '\n\r\t'
+normal_punc = string.punctuation + whitespace
+mc_blacklist = '"#$%()*-/:<=>@[\]^_`{|}~' + whitespace
+mc_whitelist = ('.', '...', '!', ',', '?', ';')
 stop = stopwords.words('english')
 
 bigram_measures = nltk.collocations.BigramAssocMeasures()
@@ -25,8 +29,6 @@ p_stemmer = PorterStemmer()
 
 def get_cleaned_sentences(text):
     text = ''.join(i for i in text if ord(i) < 128)  # Remove non-ASCII characters
-    text = text.replace('\r', '. ').replace('\n', '. ').replace('\t', ' ')
-    text = text.replace('  ', ' ').replace('..', '.').lower()
     sentences = nltk.sent_tokenize(text)
     return sentences
 
@@ -43,10 +45,11 @@ def get_bigrams(words, n):
     return bigrams
 
 
-def for_word2vec(content, out_path):
+def for_markov_chain(content, out_path):
     idx = 0
     total = len(content)
     cleaned = []
+    non_words = {}
 
     for entry in content:
         body = content[entry]['body']
@@ -62,20 +65,83 @@ def for_word2vec(content, out_path):
         sentences = get_cleaned_sentences(soup)
         for sentence in sentences:
             result = []
-            for p in punc:
+            for p in mc_blacklist:
                 sentence = sentence.replace(p, '')
-            words = sentence.rstrip().split(' ')
+            words = re.findall(r"[\w'-]+|[.,!?;]", sentence.strip())
             for word in words:
-                word = word.rstrip()
-                if word not in stop and not word.isdigit() and wordnet.synsets(word):
-                    result.append(word)
+                word = word.strip()
+                if len(word) > 0:
+                    if word in mc_whitelist or word in stop or wordnet.synsets(word):
+                        result.append(word)
+                    else:
+                        if word in non_words:
+                            non_words[word] += 1
+                        else:
+                            non_words[word] = 1
+
+                        if non_words[word] > 5:
+                            result.append(word)
+
+            if len(result) > 5:
+                if result[0] in mc_whitelist:
+                    result.remove(result[0])
+                result[0] = result[0].capitalize()
+                if result[-1] in (',', ';'):
+                    result[-1] = '.'
+                if result[-1] not in mc_whitelist:
+                    result.append('.')
+
+                cleaned.append('START-MC NOW-MC ' +
+                               ''.join(w if w in mc_whitelist else ' ' + w for w in result).strip() +
+                               ' END-MC')
+
+    save(cleaned, out_path)
+
+
+def for_word2vec(content, out_path):
+    idx = 0
+    total = len(content)
+    cleaned = []
+    non_words = {}
+
+    for entry in content:
+        body = content[entry]['body']
+
+        if idx % 1000 == 0:
+            print('{0} / {1}'.format(idx, total))
+        idx += 1
+
+        # Remove all html tags, preserving space between entries
+        soup = BeautifulSoup(body, 'lxml')
+        soup = ' '.join(soup.findAll(text=True))
+
+        sentences = get_cleaned_sentences(soup)
+        for sentence in sentences:
+            result = []
+            for p in normal_punc:
+                sentence = sentence.replace(p, '')
+            words = sentence.strip().split(' ')
+            for word in words:
+                word = word.strip()
+                if len(word) > 0 and word not in stop and not word.isdigit():
+                    if not wordnet.synsets(word):
+                        if word in non_words:
+                            non_words[word] += 1
+                        else:
+                            non_words[word] = 1
+
+                        if non_words[word] > 10:
+                            result.append(word)
+                    else:
+                        result.append(word)
+
             if len(result) > 5:
                 cleaned.append(' '.join(result))
 
     save(cleaned, out_path)
 
 
-def for_topic_modeling(content):
+def for_topic_modeling(content, out_path):
     idx = 0
     total = len(content)
     cleaned = []
@@ -94,11 +160,11 @@ def for_topic_modeling(content):
     #     sentences = get_cleaned_sentences(soup)
     #     for sentence in sentences:
     #         result = []
-    #         for p in punc:
+    #         for p in normal_punc:
     #             sentence = sentence.replace(p, '')
-    #         words = sentence.rstrip().split(' ')
+    #         words = sentence.strip().split(' ')
     #         for word in words:
-    #             word = word.rstrip()
+    #             word = word.strip()
     #             if word not in stop and not word.isdigit() and wordnet.synsets(word):
     #                 result.append(word)
     #         if len(result) > 5:
