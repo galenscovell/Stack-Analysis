@@ -36,7 +36,7 @@ def create_model_dataset(topic, target):
     elif target == 'word2vec':
         cleaner.for_word2vec(posts, resource + 'Posts_word2vec.txt')
     else:
-        cleaner.for_markov_chain(posts, resource + 'Posts_markov_chain.txt')
+        cleaner.start_clean(posts, resource + 'Posts_markov_chain.txt')
 
 
 def search_word2vec(model, topics):
@@ -53,12 +53,12 @@ def search_word2vec(model, topics):
 if __name__ == '__main__':
     os.chdir(r'C:\Users\Galen\Documents\GitHub\Stack-Analysis')
 
-    topic = 'lifehacks'
+    topic = 'travel'
 
     # create_json_maps(topic)
-    create_model_dataset(topic, 'markov_chain')
+    # create_model_dataset(topic, 'markov_chain')
 
-    markov_chain.run(topic, 4, True)
+    markov_chain.run(topic, 8, False)
 
     # word2vec.create_and_train_model(word2vec_set, 'gaming_word2vec_model_sg')
     # model = word2vec.load_model('gaming_word2vec_model_sg')

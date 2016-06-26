@@ -1,2 +1,2 @@
 # Stack-Analysis
-Analyzing StackExchange datasets with word2vec and LDA
+Analyzing StackExchange data sets with word2vec, Markov Chains and LDA

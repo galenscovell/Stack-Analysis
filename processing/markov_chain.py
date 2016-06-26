@@ -10,7 +10,7 @@ import pickle
 import random
 import re
 
-mc_whitelist = ('.', '...', '!', ',', '?', ';')
+mc_whitelist = ('.', '...', '!', ',', '?', '--', ';')
 
 
 def generate_trigram(words):
@@ -40,22 +40,6 @@ def generate_sentence(chain, sword1='START-MC', sword2='NOW-MC'):
         new_sentence.append(sword2)
 
     return ''.join(w if w in mc_whitelist else ' ' + w for w in new_sentence).strip()
-
-
-def generate_paragraph(chain, n):
-    new_sentences = []
-
-    for x in range(n):
-        if len(new_sentences) > 0:
-            print(new_sentences[-1])
-            last_sentence = re.findall(r"[\w']+|[.,!?;]", new_sentences[-1].strip())
-            print(last_sentence)
-            new_sentences.append(generate_sentence(chain, 'NOW-MC', last_sentence[-2]))
-        else:
-            new_sentences.append(generate_sentence(chain))
-
-    for sentence in new_sentences:
-        print(sentence)
 
 
 def create_pickle(topic):
@@ -92,5 +76,9 @@ def run(topic, n, generate=True):
     for x in range(n):
         print(generate_sentence(word_chain))
 
-    # print('\nOne paragraph:')
-    # generate_paragraph(word_chain, n)
+
+# TODO: Find top vocab for corpus, use it to seed markov chain sentences for paragraphs.
+# TODO: When end punctuation ('.', '!', '?', ';') is reached in a sentence,
+# TODO: mark the sentence as complete and add it to cleaned list, then continue
+# TODO: parsing the rest of the sentence.
+# TODO: Handling chars like $, %
